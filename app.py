@@ -1,7 +1,4 @@
 import streamlit as st
-from PIL import Image
-import pytesseract
-import re
 
 # Page Configuration
 st.set_page_config(
@@ -11,61 +8,12 @@ st.set_page_config(
 )
 
 st.title("🚢 TradeLens AI: Customs & Tariff Engine")
-st.markdown("Deterministic trade compliance, AfCFTA duty savings, dynamic document ingestion, and secure settlement.")
+st.markdown("Deterministic trade compliance, AfCFTA duty savings, dynamic variable entry, and secure settlement.")
 st.markdown("---")
 
-# Initialize Session State Variables
-if "exw_price" not in st.session_state:
-    st.session_state["exw_price"] = 50000.0
-if "freight_cost" not in st.session_state:
-    st.session_state["freight_cost"] = 3500.0
-if "vnom_value" not in st.session_state:
-    st.session_state["vnom_value"] = 15000.0
-if "hs_code" not in st.session_state:
-    st.session_state["hs_code"] = "0901.11"
-if "extra_variables" not in st.session_state:
-    st.session_state["extra_variables"] = {}
-
 # ==========================================
-# SIDEBAR: DOCUMENT UPLOADER & PAYMENT GATEWAY
+# SIDEBAR: SETTLEMENT & GATEWAY
 # ==========================================
-st.sidebar.header("📥 Document Ingestion (OCR)")
-uploaded_file = st.sidebar.file_uploader("Upload Invoice / Trade Document (PNG/JPG)", type=["png", "jpg", "jpeg"])
-
-def parse_document_text(raw_text):
-    exw_match = re.search(r"(?:exw|price|invoice value)\s*[:=]?\s*[\$]?\s*([\d,]+\.?\d*)", raw_text, re.IGNORECASE)
-    freight_match = re.search(r"(?:freight|shipping|cif)\s*[:=]?\s*[\$]?\s*([\d,]+\.?\d*)", raw_text, re.IGNORECASE)
-    vnom_match = re.search(r"(?:vnom|non-originating|foreign input)\s*[:=]?\s*[\$]?\s*([\d,]+\.?\d*)", raw_text, re.IGNORECASE)
-    hs_match = re.search(r"(?:hs code|tariff)\s*[:=]?\s*([\d\.]+)", raw_text, re.IGNORECASE)
-
-    if exw_match:
-        st.session_state["exw_price"] = float(exw_match.group(1).replace(",", ""))
-    if freight_match:
-        st.session_state["freight_cost"] = float(freight_match.group(1).replace(",", ""))
-    if vnom_match:
-        st.session_state["vnom_value"] = float(vnom_match.group(1).replace(",", ""))
-    if hs_match:
-        st.session_state["hs_code"] = str(hs_match.group(1))
-
-    lines = raw_text.split("\n")
-    for line in lines:
-        if ":" in line:
-            parts = line.split(":")
-            key, val = parts[0].strip(), parts[1].strip()
-            if key and val and not any(k in key.lower() for k in ["exw", "freight", "vnom", "hs code"]):
-                st.session_state["extra_variables"][key] = val
-
-if uploaded_file is not None:
-    image = Image.open(uploaded_file)
-    st.sidebar.image(image, caption="Uploaded Invoice", use_column_width=True)
-    try:
-        extracted_text = pytesseract.image_to_string(image)
-        parse_document_text(extracted_text)
-    except Exception:
-        pass
-
-# --- PAYMENT METHOD INTEGRATION IN SIDEBAR ---
-st.sidebar.markdown("---")
 st.sidebar.header("💳 Payment & Settlement Options")
 payment_method = st.sidebar.selectbox(
     "Select Payment/Transfer Provider", 
@@ -82,19 +30,13 @@ st.header("⚙️ 1. Core Trade Variables & Dynamic Expansion")
 
 col1, col2, col3, col4 = st.columns(4)
 with col1:
-    hs_code = st.text_input("HS Code", value=st.session_state["hs_code"])
+    hs_code = st.text_input("HS Code", value="0901.11")
 with col2:
-    exw_price = st.number_input("Ex-Works Price ($)", min_value=0.0, value=st.session_state["exw_price"], step=500.0)
+    exw_price = st.number_input("Ex-Works Price ($)", min_value=0.0, value=50000.0, step=500.0)
 with col3:
-    freight_cost = st.number_input("Freight & Insurance ($)", min_value=0.0, value=st.session_state["freight_cost"], step=100.0)
+    freight_cost = st.number_input("Freight & Insurance ($)", min_value=0.0, value=3500.0, step=100.0)
 with col4:
-    vnom_value = st.number_input("Non-Originating Materials (VNOM $)", min_value=0.0, value=st.session_state["vnom_value"], step=500.0)
-
-# Dynamic Catch-All Extra Fields
-if st.session_state["extra_variables"]:
-    st.subheader("➕ Automatically Detected Extra Document Fields")
-    for key, val in st.session_state["extra_variables"].items():
-        st.text_input(f"Extra Variable: {key}", value=val, key=f"dyn_{key}")
+    vnom_value = st.number_input("Non-Originating Materials (VNOM $)", min_value=0.0, value=15000.0, step=500.0)
 
 # ==========================================
 # DETERMINISTIC CALCULATIONS & KPIS
