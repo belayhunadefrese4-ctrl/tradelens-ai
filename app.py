@@ -1,34 +1,50 @@
 import streamlit as st
+import pandas as pd
+import io
+from datetime import datetime
 
-# Page Configuration
+# ReportLab imports for professional multi-page PDF generation
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+
+# ==========================================
+# 1. PAGE CONFIGURATION & SESSION STATE
+# ==========================================
 st.set_page_config(
     page_title="TradeLens AI - Regional Trade & Tariff Intelligence",
+    page_icon="🚢",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 st.title("🚢 TradeLens AI: Customs & Tariff Engine")
-st.markdown("Deterministic trade compliance, AfCFTA duty savings, dynamic variable entry, and secure settlement.")
+st.markdown("Deterministic trade compliance, AfCFTA duty savings, dynamic variable entry, and certified PDF report generation.")
 st.markdown("---")
 
 # ==========================================
-# SIDEBAR: SETTLEMENT & GATEWAY
+# 2. SIDEBAR: SETTLEMENT & GATEWAY
 # ==========================================
 st.sidebar.header("💳 Payment & Settlement Options")
 payment_method = st.sidebar.selectbox(
     "Select Payment/Transfer Provider", 
-    ["Telebirr", "Commercial Bank of Ethiopia (CBE)", "Sendwave (International)", "Remitly"]
+    ["Telebirr", "Commercial Bank of Ethiopia (CBE)", "Sendwave (International)", "Remitly", "Stripe / Credit Card"]
 )
 st.sidebar.caption(f"Selected Gateway: **{payment_method}** ready for certification fee settlement.")
-if st.sidebar.button("Process Fee & Unlock Official Stamp"):
-    st.sidebar.success(f"Payment request initiated via {payment_method}!")
+
+is_paid = st.sidebar.checkbox("✅ Mark Certification Fee as Paid (Unlock PDF)", value=True)
+if is_paid:
+    st.sidebar.success("🔓 Official Stamp & PDF Generation Unlocked!")
+else:
+    st.sidebar.warning("🔒 Complete settlement to unlock official export stamp.")
 
 # ==========================================
-# MAIN SECTION: VARIABLES & CALCULATIONS
+# 3. MAIN SECTION: VARIABLES & CALCULATIONS
 # ==========================================
 st.header("⚙️ 1. Core Trade Variables & Dynamic Expansion")
 
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3, col4, col5 = st.columns(5)
 with col1:
     hs_code = st.text_input("HS Code", value="0901.11")
 with col2:
@@ -37,9 +53,11 @@ with col3:
     freight_cost = st.number_input("Freight & Insurance ($)", min_value=0.0, value=3500.0, step=100.0)
 with col4:
     vnom_value = st.number_input("Non-Originating Materials (VNOM $)", min_value=0.0, value=15000.0, step=500.0)
+with col5:
+    destination_country = st.selectbox("Destination Market", ["Kenya (EAC)", "Egypt (COMESA)", "South Africa (SADC)", "Ghana (ECOWAS)", "Rwanda (EAC)"])
 
 # ==========================================
-# DETERMINISTIC CALCULATIONS & KPIS
+# 4. DETERMINISTIC CALCULATIONS & KPIS
 # ==========================================
 st.markdown("---")
 st.header("📊 2. Deterministic KPI Calculations")
@@ -71,38 +89,93 @@ with kpi4:
     st.metric(label="AfCFTA Eligibility Status", value=status_label)
 
 # ==========================================
-# REPORT FORMAT & DOWNLOADABLE FILE
+# 5. PROFESSIONAL REPORTLAB PDF GENERATION
 # ==========================================
 st.markdown("---")
-st.header("📥 3. Official Report Format & Download")
+st.header("📥 3. Certified Export & Compliance Report Generation (.PDF)")
 
-report_content = f"""
-==================================================
-TRADELENS AI - OFFICIAL TARIFF & COMPLIANCE REPORT
-==================================================
-1. CORE TRADE VARIABLES:
-- HS Code: {hs_code}
-- Ex-Works Price: ${exw_price:,.2f}
-- Freight & Insurance: ${freight_cost:,.2f}
-- Non-Originating Materials (VNOM): ${vnom_value:,.2f}
+def generate_pdf_report(hs, exw, freight, vnom, cif, std_duty, afc_duty, savings, score, status, market, gateway):
+    pdf_buffer = io.BytesIO()
+    doc = SimpleDocTemplate(pdf_buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
+    styles = getSampleStyleSheet()
+    
+    title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=14, textColor=colors.HexColor('#1A365D'), spaceAfter=6)
+    subtitle_style = ParagraphStyle('DocSubTitle', parent=styles['Normal'], fontSize=8.5, textColor=colors.HexColor('#4A5568'), spaceAfter=10)
+    heading_style = ParagraphStyle('SectionHeading', fontSize=10, textColor=colors.HexColor('#1A365D'), spaceBefore=8, spaceAfter=4)
+    body_style = ParagraphStyle('Body', parent=styles['Normal'], fontSize=8, textColor=colors.HexColor('#2D3748'), spaceAfter=4, leading=11)
+    
+    header_cell = ParagraphStyle('HeaderCell', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=8.5, textColor=colors.whitesmoke, leading=10)
+    table_cell = ParagraphStyle('TableCell', parent=styles['Normal'], fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#2D3748'], leading=10)
+    
+    story = []
+    story.append(Paragraph("<b>TRADELENS AI - OFFICIAL CUSTOMS & TARIFF COMPLIANCE CERTIFICATE</b>", title_style))
+    story.append(Paragraph(f"<b>Destination Market:</b> {market} | <b>HS Code:</b> {hs} | <b>Date:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", subtitle_style))
+    story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#1A365D'), spaceAfter=8))
+    
+    story.append(Paragraph("1. Executive Summary & Rules of Origin Evaluation", heading_style))
+    exec_summary = f"""
+    This official trade certificate verifies the customs valuation and preferential tariff eligibility under the African Continental Free Trade Area (AfCFTA) framework. 
+    The evaluated shipment under HS Code <b>{hs}</b> destined for <b>{market}</b> achieves a Rules of Origin local value content score of <b>{score:.1f}%</b>, 
+    officially registering a compliance status of <b>{status}</b> based on a maximum non-originating material allowance of 60%.
+    """
+    story.append(Paragraph(exec_summary, body_style))
+    
+    story.append(Paragraph("2. Financial Valuation & Tariff Savings Breakdown", heading_style))
+    table_data = [
+        [Paragraph("Metric Description", header_cell), Paragraph("Standard Tariff Regime", header_cell), Paragraph("AfCFTA Preferential Regime", header_cell)],
+        [Paragraph("Ex-Works Price (EXW)", table_cell), Paragraph(f"${exw:,.2f}", table_cell), Paragraph(f"${exw:,.2f}", table_cell)],
+        [Paragraph("Freight & Insurance", table_cell), Paragraph(f"${freight:,.2f}", table_cell), Paragraph(f"${freight:,.2f}", table_cell)],
+        [Paragraph("CIF Total Valuation", table_cell), Paragraph(f"${cif:,.2f}", table_cell), Paragraph(f"${cif:,.2f}", table_cell)],
+        [Paragraph("Applicable Duty Rate", table_cell), Paragraph("15.0%", table_cell), Paragraph("0.0% (Duty-Free)", table_cell)],
+        [Paragraph("Customs Duty Payable", table_cell), Paragraph(f"${std_duty:,.2f}", table_cell), Paragraph(f"${afc_duty:,.2f}", table_cell)],
+        [Paragraph("Net Preferential Savings", table_cell), Paragraph("-", table_cell), Paragraph(f"<b>${savings:,.2f} Saved</b>", table_cell)]
+    ]
+    
+    t = Table(table_data, colWidths=[180, 160, 160])
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1A365D')),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E0')),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+    ]))
+    story.append(t)
+    
+    story.append(Paragraph("3. Settlement & Audit Verification", heading_style))
+    audit_text = f"""
+    <b>Settlement Provider:</b> {gateway} <br/>
+    <b>Compliance Status:</b> {status} <br/>
+    <b>Certification Stamp:</b> Verified via TradeLens AI Regional Intelligence Engine.
+    """
+    story.append(Paragraph(audit_text, body_style))
+    
+    doc.build(story)
+    pdf_buffer.seek(0)
+    return pdf_buffer.getvalue()
 
-2. CALCULATED KPIs & COMPLIANCE:
-- CIF Total Valuation: ${cif_valuation:,.2f}
-- Standard Duty Payable: ${standard_duty_payable:,.2f}
-- AfCFTA Preferential Duty: ${afcfta_duty_payable:,.2f}
-- Total Estimated Duty Savings: ${total_duty_savings:,.2f}
-- Rules of Origin Compliance Score: {origin_compliance_score:.1f}%
-- AfCFTA Eligibility Status: {status_label}
-- Selected Settlement Gateway: {payment_method}
-==================================================
-Generated via TradeLens AI Intelligence Engine
-"""
-
-st.text_area("Report Preview", value=report_content, height=200)
-
-st.download_button(
-    label="📥 Download Official Compliance Report (.txt)",
-    data=report_content,
-    file_name="tradelens_official_report.txt",
-    mime="text/plain"
-)
+if is_paid:
+    pdf_bytes = generate_pdf_report(
+        hs=hs_code,
+        exw=exw_price,
+        freight=freight_cost,
+        vnom=vnom_value,
+        cif=cif_valuation,
+        std_duty=standard_duty_payable,
+        afc_duty=afcfta_duty_payable,
+        savings=total_duty_savings,
+        score=origin_compliance_score,
+        status=status_label,
+        market=destination_country,
+        gateway=payment_method
+    )
+    
+    st.success("🎉 Official Compliance PDF Generated Successfully!")
+    st.download_button(
+        label="📥 Download Certified Customs & Tariff Report (.PDF)",
+        data=pdf_bytes,
+        file_name=f"TradeLens_AfCFTA_Certificate_{hs_code.replace('.', '')}.pdf",
+        mime="application/pdf",
+        type="primary"
+    )
+else:
+    st.warning("🔒 **Report Locked:** Please mark the certification fee as settled in the sidebar to download your official PDF certificate.")
