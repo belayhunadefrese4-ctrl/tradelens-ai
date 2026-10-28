@@ -10,7 +10,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
 # ==========================================
-# 1. PAGE CONFIGURATION & SESSION STATE
+# 1. PAGE CONFIGURATION
 # ==========================================
 st.set_page_config(
     page_title="TradeLens AI - Regional Trade & Tariff Intelligence",
@@ -20,24 +20,17 @@ st.set_page_config(
 )
 
 st.title("🚢 TradeLens AI: Customs & Tariff Engine")
-st.markdown("Deterministic trade compliance, AfCFTA duty savings, dynamic variable entry, and certified PDF report generation.")
+st.markdown("Deterministic trade compliance, AfCFTA duty savings, dynamic variable entry, and instant free certified PDF report generation.")
 st.markdown("---")
 
 # ==========================================
-# 2. SIDEBAR: SETTLEMENT & GATEWAY
+# 2. SIDEBAR: PROFESSIONAL PORTFOLIO INFO
 # ==========================================
-st.sidebar.header("💳 Payment & Settlement Options")
-payment_method = st.sidebar.selectbox(
-    "Select Payment/Transfer Provider", 
-    ["Telebirr", "Commercial Bank of Ethiopia (CBE)", "Sendwave (International)", "Remitly", "Stripe / Credit Card"]
+st.sidebar.header("📋 Platform Overview")
+st.sidebar.info(
+    "**Open Access Portfolio Tool**\n\n"
+    "This engine is fully unlocked for public demonstration, economic evaluation, and institutional review."
 )
-st.sidebar.caption(f"Selected Gateway: **{payment_method}** ready for certification fee settlement.")
-
-is_paid = st.sidebar.checkbox("✅ Mark Certification Fee as Paid (Unlock PDF)", value=True)
-if is_paid:
-    st.sidebar.success("🔓 Official Stamp & PDF Generation Unlocked!")
-else:
-    st.sidebar.warning("🔒 Complete settlement to unlock official export stamp.")
 
 # ==========================================
 # 3. MAIN SECTION: VARIABLES & CALCULATIONS
@@ -94,7 +87,7 @@ with kpi4:
 st.markdown("---")
 st.header("📥 3. Certified Export & Compliance Report Generation (.PDF)")
 
-def generate_pdf_report(hs, exw, freight, vnom, cif, std_duty, afc_duty, savings, score, status, market, gateway):
+def generate_pdf_report(hs, exw, freight, vnom, cif, std_duty, afc_duty, savings, score, status, market):
     pdf_buffer = io.BytesIO()
     doc = SimpleDocTemplate(pdf_buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
     styles = getSampleStyleSheet()
@@ -105,7 +98,7 @@ def generate_pdf_report(hs, exw, freight, vnom, cif, std_duty, afc_duty, savings
     body_style = ParagraphStyle('Body', parent=styles['Normal'], fontSize=8, textColor=colors.HexColor('#2D3748'), spaceAfter=4, leading=11)
     
     header_cell = ParagraphStyle('HeaderCell', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=8.5, textColor=colors.whitesmoke, leading=10)
-    table_cell = ParagraphStyle('TableCell', parent=styles['Normal'], fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#2D3748'], leading=10)
+    table_cell = ParagraphStyle('TableCell', parent=styles['Normal'], fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#2D3748'), leading=10)
     
     story = []
     story.append(Paragraph("<b>TRADELENS AI - OFFICIAL CUSTOMS & TARIFF COMPLIANCE CERTIFICATE</b>", title_style))
@@ -141,11 +134,10 @@ def generate_pdf_report(hs, exw, freight, vnom, cif, std_duty, afc_duty, savings
     ]))
     story.append(t)
     
-    story.append(Paragraph("3. Settlement & Audit Verification", heading_style))
+    story.append(Paragraph("3. Audit Verification", heading_style))
     audit_text = f"""
-    <b>Settlement Provider:</b> {gateway} <br/>
     <b>Compliance Status:</b> {status} <br/>
-    <b>Certification Stamp:</b> Verified via TradeLens AI Regional Intelligence Engine.
+    <b>Certification Stamp:</b> Verified via TradeLens AI Regional Intelligence Engine (Open Access Portfolio Edition).
     """
     story.append(Paragraph(audit_text, body_style))
     
@@ -153,29 +145,25 @@ def generate_pdf_report(hs, exw, freight, vnom, cif, std_duty, afc_duty, savings
     pdf_buffer.seek(0)
     return pdf_buffer.getvalue()
 
-if is_paid:
-    pdf_bytes = generate_pdf_report(
-        hs=hs_code,
-        exw=exw_price,
-        freight=freight_cost,
-        vnom=vnom_value,
-        cif=cif_valuation,
-        std_duty=standard_duty_payable,
-        afc_duty=afcfta_duty_payable,
-        savings=total_duty_savings,
-        score=origin_compliance_score,
-        status=status_label,
-        market=destination_country,
-        gateway=payment_method
-    )
-    
-    st.success("🎉 Official Compliance PDF Generated Successfully!")
-    st.download_button(
-        label="📥 Download Certified Customs & Tariff Report (.PDF)",
-        data=pdf_bytes,
-        file_name=f"TradeLens_AfCFTA_Certificate_{hs_code.replace('.', '')}.pdf",
-        mime="application/pdf",
-        type="primary"
-    )
-else:
-    st.warning("🔒 **Report Locked:** Please mark the certification fee as settled in the sidebar to download your official PDF certificate.")
+pdf_bytes = generate_pdf_report(
+    hs=hs_code,
+    exw=exw_price,
+    freight=freight_cost,
+    vnom=vnom_value,
+    cif=cif_valuation,
+    std_duty=standard_duty_payable,
+    afc_duty=afcfta_duty_payable,
+    savings=total_duty_savings,
+    score=origin_compliance_score,
+    status=status_label,
+    market=destination_country
+)
+
+st.success("🎉 Official Compliance PDF Ready for Instant Download!")
+st.download_button(
+    label="📥 Download Certified Customs & Tariff Report (.PDF)",
+    data=pdf_bytes,
+    file_name=f"TradeLens_AfCFTA_Certificate_{hs_code.replace('.', '')}.pdf",
+    mime="application/pdf",
+    type="primary"
+)
